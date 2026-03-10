@@ -69,8 +69,6 @@ class TripDetail:
     crowd_forecast: str | None
     train_category: str | None
     train_number: str | None
-    requested_datetime: str
-    sampled_at: str
 
 
 @dataclass(frozen=True)
@@ -179,7 +177,7 @@ class StatusRepository:
                 f"""
                 SELECT
                     route_id,
-                    substr(requested_datetime, 1, 10) AS service_day,
+                    service_day,
                     COUNT(*) AS sample_count,
                     COUNT(DISTINCT run_id) AS run_count,
                     ROUND(AVG({SCORE_CASE}), 1) AS availability_score,
@@ -187,7 +185,7 @@ class StatusRepository:
                     MAX(max_delay_seconds) AS worst_delay_seconds,
                     MAX(sampled_at) AS last_sampled_at
                 FROM trip_samples
-                WHERE substr(requested_datetime, 1, 10) BETWEEN ? AND ?
+                WHERE service_day BETWEEN ? AND ?
                 GROUP BY route_id, service_day
                 ORDER BY service_day ASC
                 """,
@@ -283,13 +281,11 @@ class StatusRepository:
                     crowd_forecast,
                     train_category,
                     train_number,
-                    requested_datetime,
-                    sampled_at,
                     {SCORE_CASE} AS trip_score
                 FROM trip_samples
                 WHERE route_id = ?
-                  AND substr(requested_datetime, 1, 10) = ?
-                ORDER BY requested_datetime ASC, trip_index ASC
+                  AND service_day = ?
+                ORDER BY planned_departure_at ASC, trip_index ASC
                 """,
                 (route.route_id, service_day.isoformat()),
             ).fetchall()
@@ -333,8 +329,6 @@ class StatusRepository:
                 crowd_forecast=str(row["crowd_forecast"]) if row["crowd_forecast"] else None,
                 train_category=str(row["train_category"]) if row["train_category"] else None,
                 train_number=str(row["train_number"]) if row["train_number"] else None,
-                requested_datetime=str(row["requested_datetime"]),
-                sampled_at=str(row["sampled_at"]),
             ))
 
         has_data = len(trips) > 0

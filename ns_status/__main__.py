@@ -42,6 +42,17 @@ def main() -> None:
     storage.initialize()
     client = NSClient()
 
+    if args.command == "collect-now":
+        now = datetime.now(timezone)
+        for route in config.routes:
+            try:
+                snapshot = collect_snapshot(client, route, now)
+                run_id = storage.store_snapshot(snapshot)
+                print(f"[{route.route_id}] Upserted run {run_id} with {len(snapshot.trips)} trips.")
+            except Exception as exc:
+                print(f"[{route.route_id}] Failed: {exc}")
+        return
+
     if args.command == "collect-once":
         route = config.route_by_id(args.route_id)
         requested_datetime = parse_datetime_arg(args.at, timezone)
@@ -95,6 +106,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("list-routes", help="List configured routes and sampling windows.")
+
+    subparsers.add_parser(
+        "collect-now",
+        help="Collect all routes right now. Designed for cron — no window or time args needed.",
+    )
 
     collect_once = subparsers.add_parser("collect-once", help="Collect one route at one time.")
     collect_once.add_argument("--route-id", required=True, help="Route identifier from routes.json.")

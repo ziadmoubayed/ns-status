@@ -77,6 +77,39 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(sampled_at, "2026-03-10T07:01:00+01:00")
             self.assertEqual(max_delay_seconds, 300)
 
+    def test_same_trip_uid_different_scrape_times_upserts(self) -> None:
+        """When cron collects every 5 min, the same trip_uid on the same day should be upserted."""
+        route = RouteConfig(
+            route_id="utrecht-amsterdam-centraal",
+            origin_name="Utrecht Centraal",
+            origin_uic_code="8400621",
+            destination_name="Amsterdam Centraal",
+            destination_uic_code="8400058",
+        )
+        first_at = datetime.fromisoformat("2026-03-10T07:00:00+01:00")
+        second_at = datetime.fromisoformat("2026-03-10T07:05:00+01:00")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            db_path = Path(tmp_dir) / "ns_status.db"
+            storage = Storage(db_path)
+            storage.initialize()
+
+            first = _snapshot(route, first_at, sampled_at="2026-03-10T07:00:00+01:00", delay_seconds=0)
+            second = _snapshot(route, second_at, sampled_at="2026-03-10T07:05:00+01:00", delay_seconds=120)
+
+            storage.store_snapshot(first)
+            storage.store_snapshot(second)
+
+            with sqlite3.connect(db_path) as connection:
+                trip_count = connection.execute("SELECT COUNT(*) FROM trip_samples").fetchone()[0]
+                max_delay = connection.execute("SELECT max_delay_seconds FROM trip_samples").fetchone()[0]
+                service_day = connection.execute("SELECT service_day FROM trip_samples").fetchone()[0]
+
+            # Same trip_uid on same day → one row, updated with latest data
+            self.assertEqual(trip_count, 1)
+            self.assertEqual(max_delay, 120)
+            self.assertEqual(service_day, "2026-03-10")
+
 
 def _time(raw: str):
     hour, minute = raw.split(":")

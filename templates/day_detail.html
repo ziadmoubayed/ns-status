@@ -67,7 +67,6 @@
       <table class="history-table trip-table">
         <thead>
           <tr>
-            <th>Requested</th>
             <th>Departure</th>
             <th>Arrival</th>
             <th>Duration</th>
@@ -81,7 +80,6 @@
         <tbody>
           {% for trip in detail.trips %}
             <tr class="trip-row trip-row--grade-{{ trip.delay_grade }}{% if trip.cancelled %} trip-row--cancelled{% endif %}">
-              <td>{{ trip.requested_datetime[11:16] }}</td>
               <td>
                 {{ trip.planned_departure[11:16] }}
                 {% if trip.actual_departure and trip.departure_delay_seconds > 0 %}

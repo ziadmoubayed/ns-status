@@ -36,6 +36,7 @@ class Storage:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id INTEGER NOT NULL REFERENCES scrape_runs(id) ON DELETE CASCADE,
                     route_id TEXT NOT NULL,
+                    service_day TEXT NOT NULL,
                     sampled_at TEXT NOT NULL,
                     requested_datetime TEXT NOT NULL,
                     trip_index INTEGER NOT NULL,
@@ -62,8 +63,8 @@ class Storage:
                     punctuality REAL
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_trip_samples_route_time
-                    ON trip_samples(route_id, requested_datetime);
+                CREATE INDEX IF NOT EXISTS idx_trip_samples_route_day
+                    ON trip_samples(route_id, service_day);
 
                 CREATE INDEX IF NOT EXISTS idx_trip_samples_route_sampled
                     ON trip_samples(route_id, sampled_at);
@@ -79,8 +80,8 @@ class Storage:
             )
             connection.execute(
                 """
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_samples_run_trip_index
-                    ON trip_samples(run_id, trip_index)
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_samples_route_trip_day
+                    ON trip_samples(route_id, trip_uid, service_day)
                 """
             )
 
@@ -138,13 +139,13 @@ class Storage:
                     ),
                 ).fetchone()[0]
             )
-            connection.execute("DELETE FROM trip_samples WHERE run_id = ?", (run_id,))
 
             connection.executemany(
                 """
                 INSERT INTO trip_samples (
                     run_id,
                     route_id,
+                    service_day,
                     sampled_at,
                     requested_datetime,
                     trip_index,
@@ -169,12 +170,31 @@ class Storage:
                     train_number,
                     train_direction,
                     punctuality
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(route_id, trip_uid, service_day) DO UPDATE SET
+                    run_id = excluded.run_id,
+                    sampled_at = excluded.sampled_at,
+                    requested_datetime = excluded.requested_datetime,
+                    trip_index = excluded.trip_index,
+                    ns_status = excluded.ns_status,
+                    status_label = excluded.status_label,
+                    actual_departure_at = excluded.actual_departure_at,
+                    actual_arrival_at = excluded.actual_arrival_at,
+                    actual_duration_minutes = excluded.actual_duration_minutes,
+                    departure_delay_seconds = excluded.departure_delay_seconds,
+                    arrival_delay_seconds = excluded.arrival_delay_seconds,
+                    max_delay_seconds = excluded.max_delay_seconds,
+                    delay_grade = excluded.delay_grade,
+                    cancelled = excluded.cancelled,
+                    part_cancelled = excluded.part_cancelled,
+                    crowd_forecast = excluded.crowd_forecast,
+                    punctuality = excluded.punctuality
                 """,
                 [
                     (
                         run_id,
                         trip.route_id,
+                        trip.planned_departure_at.strftime("%Y-%m-%d"),
                         trip.sampled_at.isoformat(),
                         trip.requested_datetime.isoformat(),
                         trip.trip_index,
@@ -227,7 +247,7 @@ class Storage:
             WHERE id NOT IN (
                 SELECT MAX(id)
                 FROM trip_samples
-                GROUP BY run_id, trip_index
+                GROUP BY route_id, trip_uid, service_day
             )
             """
         )
