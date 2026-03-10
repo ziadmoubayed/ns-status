@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
+import traceback
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -43,14 +45,26 @@ def main() -> None:
     client = NSClient()
 
     if args.command == "collect-now":
+        logging.basicConfig(
+            format="%(asctime)s %(levelname)s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+            level=logging.INFO,
+        )
+        log = logging.getLogger("ns_status")
         now = datetime.now(timezone)
+        log.info("collect-now started at %s", now.isoformat())
+        success = 0
+        failed = 0
         for route in config.routes:
             try:
                 snapshot = collect_snapshot(client, route, now)
                 run_id = storage.store_snapshot(snapshot)
-                print(f"[{route.route_id}] Upserted run {run_id} with {len(snapshot.trips)} trips.")
+                log.info("[%s] upserted run %d — %d trips", route.route_id, run_id, len(snapshot.trips))
+                success += 1
             except Exception as exc:
-                print(f"[{route.route_id}] Failed: {exc}")
+                log.error("[%s] failed: %s\n%s", route.route_id, exc, traceback.format_exc())
+                failed += 1
+        log.info("collect-now finished — %d ok, %d failed", success, failed)
         return
 
     if args.command == "collect-once":
