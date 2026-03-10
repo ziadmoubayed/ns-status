@@ -19,28 +19,41 @@ Scraping rendered HTML from `ns.nl` would be brittle. The journey planner fronte
 
 ## Commands
 
+Install the project into the local virtualenv:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e .
+```
+
 List configured routes and windows:
 
 ```bash
-python3 -m ns_status list-routes
+.venv/bin/python -m ns_status list-routes
 ```
 
 Collect one route at one requested departure time:
 
 ```bash
-python3 -m ns_status collect-once --route-id utrecht-amsterdam-centraal --at 2026-03-10T21:22
+.venv/bin/python -m ns_status collect-once --route-id utrecht-amsterdam-centraal --at 2026-03-10T21:22
+```
+
+Run the FastAPI dashboard:
+
+```bash
+.venv/bin/python -m ns_status serve --host 127.0.0.1 --port 8000
 ```
 
 Collect all configured routes for a rush-hour window on a given day:
 
 ```bash
-python3 -m ns_status collect-window --window morning_rush --date 2026-03-11
+.venv/bin/python -m ns_status collect-window --window morning_rush --date 2026-03-11
 ```
 
 Use a custom database path if you want:
 
 ```bash
-python3 -m ns_status collect-window --window evening_rush --db data/custom.db
+.venv/bin/python -m ns_status collect-window --window evening_rush --db data/custom.db
 ```
 
 ## Delay grades
@@ -56,3 +69,4 @@ python3 -m ns_status collect-window --window evening_rush --db data/custom.db
 - The collector is built around a public frontend API contract, so NS may change it without notice.
 - The default route file includes the Utrecht Centraal -> Amsterdam Centraal route from your example.
 - Re-running the same route/time collection updates the existing stored snapshot instead of inserting duplicates.
+- The dashboard shows daily route status for the past 30 days, based only on whatever samples you have collected.

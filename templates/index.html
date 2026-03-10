@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="summary-grid">
+    <article class="summary-card">
+      <span class="summary-card__label">Routes tracked</span>
+      <strong class="summary-card__value">{{ overview.total_routes }}</strong>
+    </article>
+    <article class="summary-card">
+      <span class="summary-card__label">Routes with data</span>
+      <strong class="summary-card__value">{{ overview.routes_with_data }}</strong>
+    </article>
+    <article class="summary-card">
+      <span class="summary-card__label">Healthy today</span>
+      <strong class="summary-card__value">{{ overview.healthy_routes }}</strong>
+    </article>
+    <article class="summary-card">
+      <span class="summary-card__label">Alerting today</span>
+      <strong class="summary-card__value">{{ overview.alerting_routes }}</strong>
+    </article>
+  </section>
+
+  <section class="route-grid">
+    {% for route in overview.route_dashboards %}
+      <a class="route-card" href="/routes/{{ route.route_id }}">
+        <div class="route-card__top">
+          <div>
+            <p class="eyebrow">Route</p>
+            <h2>{{ route.display_name }}</h2>
+            <p class="route-card__meta">
+              {% if route.latest_day %}
+                Last sampled {{ route.latest_day.day.isoformat() }}
+              {% else %}
+                No data collected yet
+              {% endif %}
+            </p>
+          </div>
+          <div class="score-orb score-orb--{{ route.latest_day.tone if route.latest_day else 'no-data' }}">
+            <span>
+              {% if route.latest_day and route.latest_day.availability_score is not none %}
+                {{ route.latest_day.availability_score|round(0)|int }}
+              {% else %}
+                --
+              {% endif %}
+            </span>
+            <small>score</small>
+          </div>
+        </div>
+
+        <div class="route-card__status">
+          <span class="pill pill--{{ route.latest_day.tone if route.latest_day else 'no-data' }}">
+            {{ route.latest_day.status_label if route.latest_day else "No Data" }}
+          </span>
+          <span class="route-card__average">
+            30d avg
+            {% if route.thirty_day_average is not none %}
+              {{ route.thirty_day_average }}
+            {% else %}
+              --
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="day-strip">
+          {% for day in route.days %}
+            <span
+              class="day-strip__cell day-strip__cell--{{ day.tone }}"
+              title="{{ day.day.isoformat() }} · {{ day.status_label }}{% if day.availability_score is not none %} · score {{ day.availability_score }}{% endif %}"
+            ></span>
+          {% endfor %}
+        </div>
+
+        <p class="route-card__foot">Daily status based on stored rush-hour trip samples.</p>
+      </a>
+    {% endfor %}
+  </section>
+{% endblock %}

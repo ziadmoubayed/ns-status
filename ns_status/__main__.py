@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -65,6 +66,14 @@ def main() -> None:
         )
         return
 
+    if args.command == "serve":
+        os.environ["NS_STATUS_CONFIG"] = str(args.config)
+        os.environ["NS_STATUS_DB"] = str(args.db)
+        import uvicorn
+
+        uvicorn.run("ns_status.web:app", host=args.host, port=args.port, reload=args.reload)
+        return
+
     raise ValueError(f"Unsupported command: {args.command}")
 
 
@@ -106,6 +115,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         help="Optional route filter. Repeat to collect more than one route.",
     )
+
+    serve = subparsers.add_parser("serve", help="Run the FastAPI status dashboard.")
+    serve.add_argument("--host", default="127.0.0.1", help="Bind host.")
+    serve.add_argument("--port", type=int, default=8000, help="Bind port.")
+    serve.add_argument("--reload", action="store_true", help="Enable auto-reload for development.")
 
     return parser
 
