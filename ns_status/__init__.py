@@ -1,0 +1,2 @@
+"""NS route status collector."""
+

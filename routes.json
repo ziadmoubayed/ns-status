@@ -1,0 +1,27 @@
+{
+  "timezone": "Europe/Amsterdam",
+  "routes": [
+    {
+      "route_id": "utrecht-amsterdam-centraal",
+      "origin_name": "Utrecht Centraal",
+      "origin_uic_code": "8400621",
+      "destination_name": "Amsterdam Centraal",
+      "destination_uic_code": "8400058",
+      "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
+    }
+  ],
+  "sampling_windows": [
+    {
+      "name": "morning_rush",
+      "start": "07:00",
+      "end": "09:00",
+      "interval_minutes": 15
+    },
+    {
+      "name": "evening_rush",
+      "start": "16:00",
+      "end": "18:30",
+      "interval_minutes": 15
+    }
+  ]
+}
