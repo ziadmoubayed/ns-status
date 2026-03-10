@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -42,21 +43,27 @@ def create_app() -> FastAPI:
             },
         )
 
-    @app.get("/routes/{route_id}", response_class=HTMLResponse)
-    def route_detail(request: Request, route_id: str) -> HTMLResponse:
+    @app.get("/routes/{route_id}/days/{day}", response_class=HTMLResponse)
+    def day_detail(request: Request, route_id: str, day: str) -> HTMLResponse:
         try:
             route = config.route_by_id(route_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Unknown route.") from exc
 
-        dashboard = repository.build_route_dashboard(route, days=30)
+        try:
+            service_day = date.fromisoformat(day)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.") from exc
+
+        detail = repository.build_day_detail(route, service_day)
         return templates.TemplateResponse(
             request=request,
-            name="route_detail.html",
+            name="day_detail.html",
             context={
-                "route": dashboard,
-                "page_title": dashboard.display_name,
-                "page_subtitle": "Past 30 days of daily route health from stored NS trip samples.",
+                "detail": detail,
+                "route_id": route_id,
+                "page_title": f"{detail.display_name} · {detail.day_label}",
+                "page_subtitle": f"All trip samples collected for {detail.day.isoformat()}.",
                 "window_days": 30,
             },
         )

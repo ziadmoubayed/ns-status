@@ -47,6 +47,50 @@ class RouteDashboard:
 
 
 @dataclass(frozen=True)
+class TripDetail:
+    trip_uid: str
+    trip_index: int
+    ns_status: str
+    status_label: str
+    planned_departure: str
+    actual_departure: str | None
+    planned_arrival: str
+    actual_arrival: str | None
+    planned_duration_minutes: int | None
+    actual_duration_minutes: int | None
+    departure_delay_seconds: int
+    arrival_delay_seconds: int
+    max_delay_seconds: int
+    delay_grade: int
+    delay_grade_label: str
+    cancelled: bool
+    part_cancelled: bool
+    transfer_count: int
+    crowd_forecast: str | None
+    train_category: str | None
+    train_number: str | None
+    requested_datetime: str
+    sampled_at: str
+
+
+@dataclass(frozen=True)
+class DayDetail:
+    route_id: str
+    display_name: str
+    day: date
+    day_label: str
+    availability_score: float | None
+    status_label: str
+    tone: str
+    sample_count: int
+    cancellation_count: int
+    worst_delay_minutes: int | None
+    trips: tuple[TripDetail, ...]
+    grade_distribution: dict[int, int]
+    has_data: bool
+
+
+@dataclass(frozen=True)
 class DashboardOverview:
     route_dashboards: tuple[RouteDashboard, ...]
     total_routes: int
@@ -189,6 +233,139 @@ class StatusRepository:
             status_label=label,
             tone=tone,
         )
+
+
+    def build_day_detail(
+        self,
+        route: RouteConfig,
+        service_day: date,
+    ) -> DayDetail:
+        display_name = f"{route.origin_name} -> {route.destination_name}"
+        if not self.db_path.exists():
+            return DayDetail(
+                route_id=route.route_id,
+                display_name=display_name,
+                day=service_day,
+                day_label=service_day.strftime("%b %d, %Y"),
+                availability_score=None,
+                status_label="No Data",
+                tone="no-data",
+                sample_count=0,
+                cancellation_count=0,
+                worst_delay_minutes=None,
+                trips=(),
+                grade_distribution={},
+                has_data=False,
+            )
+
+        with sqlite3.connect(self.db_path) as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                f"""
+                SELECT
+                    trip_uid,
+                    trip_index,
+                    ns_status,
+                    status_label,
+                    planned_departure_at,
+                    actual_departure_at,
+                    planned_arrival_at,
+                    actual_arrival_at,
+                    planned_duration_minutes,
+                    actual_duration_minutes,
+                    departure_delay_seconds,
+                    arrival_delay_seconds,
+                    max_delay_seconds,
+                    delay_grade,
+                    cancelled,
+                    part_cancelled,
+                    transfer_count,
+                    crowd_forecast,
+                    train_category,
+                    train_number,
+                    requested_datetime,
+                    sampled_at,
+                    {SCORE_CASE} AS trip_score
+                FROM trip_samples
+                WHERE route_id = ?
+                  AND substr(requested_datetime, 1, 10) = ?
+                ORDER BY requested_datetime ASC, trip_index ASC
+                """,
+                (route.route_id, service_day.isoformat()),
+            ).fetchall()
+
+        trips: list[TripDetail] = []
+        grade_dist: dict[int, int] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        cancellation_count = 0
+        worst_delay_seconds = 0
+        score_sum = 0.0
+
+        for row in rows:
+            grade = int(row["delay_grade"])
+            grade_dist[grade] = grade_dist.get(grade, 0) + 1
+            cancelled = bool(row["cancelled"])
+            part_cancelled = bool(row["part_cancelled"])
+            if cancelled or part_cancelled:
+                cancellation_count += 1
+            delay = int(row["max_delay_seconds"])
+            if delay > worst_delay_seconds:
+                worst_delay_seconds = delay
+            score_sum += float(row["trip_score"])
+            trips.append(TripDetail(
+                trip_uid=str(row["trip_uid"]),
+                trip_index=int(row["trip_index"]),
+                ns_status=str(row["ns_status"]),
+                status_label=str(row["status_label"]),
+                planned_departure=str(row["planned_departure_at"]),
+                actual_departure=str(row["actual_departure_at"]) if row["actual_departure_at"] else None,
+                planned_arrival=str(row["planned_arrival_at"]),
+                actual_arrival=str(row["actual_arrival_at"]) if row["actual_arrival_at"] else None,
+                planned_duration_minutes=int(row["planned_duration_minutes"]) if row["planned_duration_minutes"] is not None else None,
+                actual_duration_minutes=int(row["actual_duration_minutes"]) if row["actual_duration_minutes"] is not None else None,
+                departure_delay_seconds=int(row["departure_delay_seconds"]),
+                arrival_delay_seconds=int(row["arrival_delay_seconds"]),
+                max_delay_seconds=delay,
+                delay_grade=grade,
+                delay_grade_label=_grade_label(grade),
+                cancelled=cancelled,
+                part_cancelled=part_cancelled,
+                transfer_count=int(row["transfer_count"]),
+                crowd_forecast=str(row["crowd_forecast"]) if row["crowd_forecast"] else None,
+                train_category=str(row["train_category"]) if row["train_category"] else None,
+                train_number=str(row["train_number"]) if row["train_number"] else None,
+                requested_datetime=str(row["requested_datetime"]),
+                sampled_at=str(row["sampled_at"]),
+            ))
+
+        has_data = len(trips) > 0
+        avg_score = round(score_sum / len(trips), 1) if trips else None
+        label, tone = classify_score(avg_score) if avg_score is not None else ("No Data", "no-data")
+
+        return DayDetail(
+            route_id=route.route_id,
+            display_name=display_name,
+            day=service_day,
+            day_label=service_day.strftime("%b %d, %Y"),
+            availability_score=avg_score,
+            status_label=label,
+            tone=tone,
+            sample_count=len(trips),
+            cancellation_count=cancellation_count,
+            worst_delay_minutes=_seconds_to_minutes(worst_delay_seconds) if worst_delay_seconds > 0 else None,
+            trips=tuple(trips),
+            grade_distribution=grade_dist,
+            has_data=has_data,
+        )
+
+
+def _grade_label(grade: int) -> str:
+    return {
+        1: "On time",
+        2: "Small delay",
+        3: "Moderate delay",
+        4: "Large delay",
+        5: "Severe / Cancelled",
+    }.get(grade, f"Grade {grade}")
 
 
 def classify_score(score: float) -> tuple[str, str]:

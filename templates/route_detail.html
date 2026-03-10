@@ -32,7 +32,7 @@
     </div>
     <div class="day-strip day-strip--large">
       {% for day in route.days %}
-        <div class="day-pill day-pill--{{ day.tone }}">
+        <a class="day-pill day-pill--{{ day.tone }}" href="/routes/{{ route.route_id }}/days/{{ day.day.isoformat() }}">
           <span class="day-pill__date">{{ day.day.strftime("%d") }}</span>
           <span class="day-pill__value">
             {% if day.availability_score is not none %}
@@ -41,7 +41,7 @@
               --
             {% endif %}
           </span>
-        </div>
+        </a>
       {% endfor %}
     </div>
   </section>
@@ -67,8 +67,8 @@
         </thead>
         <tbody>
           {% for day in route.days|reverse %}
-            <tr>
-              <td>{{ day.day.isoformat() }}</td>
+            <tr class="history-row" onclick="window.location='/routes/{{ route.route_id }}/days/{{ day.day.isoformat() }}'">
+              <td><a class="day-link" href="/routes/{{ route.route_id }}/days/{{ day.day.isoformat() }}">{{ day.day.isoformat() }}</a></td>
               <td><span class="pill pill--{{ day.tone }}">{{ day.status_label }}</span></td>
               <td>
                 {% if day.availability_score is not none %}

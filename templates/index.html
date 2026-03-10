@@ -22,7 +22,7 @@
 
   <section class="route-grid">
     {% for route in overview.route_dashboards %}
-      <a class="route-card" href="/routes/{{ route.route_id }}">
+      <div class="route-card">
         <div class="route-card__top">
           <div>
             <p class="eyebrow">Route</p>
@@ -63,15 +63,16 @@
 
         <div class="day-strip">
           {% for day in route.days %}
-            <span
+            <a
               class="day-strip__cell day-strip__cell--{{ day.tone }}"
+              href="/routes/{{ route.route_id }}/days/{{ day.day.isoformat() }}"
               title="{{ day.day.isoformat() }} · {{ day.status_label }}{% if day.availability_score is not none %} · score {{ day.availability_score }}{% endif %}"
-            ></span>
+            ></a>
           {% endfor %}
         </div>
 
-        <p class="route-card__foot">Daily status based on stored rush-hour trip samples.</p>
-      </a>
+        <p class="route-card__foot">Click a day to see trip samples.</p>
+      </div>
     {% endfor %}
   </section>
 {% endblock %}

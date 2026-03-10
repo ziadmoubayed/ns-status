@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="route-detail-hero">
+    <div>
+      <p class="eyebrow"><a class="breadcrumb" href="/">{{ detail.display_name }}</a></p>
+      <h2>{{ detail.day_label }}</h2>
+      <p class="route-detail-hero__meta">
+        {% if detail.has_data %}
+          {{ detail.sample_count }} trip{{ "s" if detail.sample_count != 1 }} sampled &middot;
+          {{ detail.cancellation_count }} cancellation{{ "s" if detail.cancellation_count != 1 }}
+          {% if detail.worst_delay_minutes %}
+            &middot; worst delay {{ detail.worst_delay_minutes }} min
+          {% endif %}
+        {% else %}
+          No stored samples for this day
+        {% endif %}
+      </p>
+    </div>
+    <div class="score-orb score-orb--{{ detail.tone }}">
+      <span>
+        {% if detail.availability_score is not none %}
+          {{ detail.availability_score|round(0)|int }}
+        {% else %}
+          --
+        {% endif %}
+      </span>
+      <small>score</small>
+    </div>
+  </section>
+
+  {% if detail.has_data %}
+  <section class="panel">
+    <div class="panel__header">
+      <h3>Delay grade breakdown</h3>
+      <p>Distribution of delay grades across all trips.</p>
+    </div>
+    <div class="grade-bar-wrap">
+      {% set total = detail.sample_count %}
+      {% for grade in [1, 2, 3, 4, 5] %}
+        {% set count = detail.grade_distribution.get(grade, 0) %}
+        {% set pct = (count / total * 100)|round(0)|int if total > 0 else 0 %}
+        <div class="grade-bar-row">
+          <span class="grade-bar-label grade-bar-label--{{ grade }}">Grade {{ grade }}</span>
+          <div class="grade-bar-track">
+            <div class="grade-bar-fill grade-bar-fill--{{ grade }}" style="width: {{ pct }}%"></div>
+          </div>
+          <span class="grade-bar-count">{{ count }}<small class="grade-bar-pct"> ({{ pct }}%)</small></span>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="grade-legend">
+      <span><strong>1</strong> On time</span>
+      <span><strong>2</strong> Small delay</span>
+      <span><strong>3</strong> Moderate</span>
+      <span><strong>4</strong> Large delay</span>
+      <span><strong>5</strong> Severe / Cancelled</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__header">
+      <h3>Trip samples</h3>
+      <p>Individual trips collected for {{ detail.day.isoformat() }}.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="history-table trip-table">
+        <thead>
+          <tr>
+            <th>Requested</th>
+            <th>Departure</th>
+            <th>Arrival</th>
+            <th>Duration</th>
+            <th>Delay</th>
+            <th>Grade</th>
+            <th>Status</th>
+            <th>Train</th>
+            <th>Transfers</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trip in detail.trips %}
+            <tr class="trip-row trip-row--grade-{{ trip.delay_grade }}{% if trip.cancelled %} trip-row--cancelled{% endif %}">
+              <td>{{ trip.requested_datetime[11:16] }}</td>
+              <td>
+                {{ trip.planned_departure[11:16] }}
+                {% if trip.actual_departure and trip.departure_delay_seconds > 0 %}
+                  <span class="delay-badge">+{{ (trip.departure_delay_seconds / 60)|round(0)|int }}m</span>
+                {% endif %}
+              </td>
+              <td>
+                {{ trip.planned_arrival[11:16] }}
+                {% if trip.actual_arrival and trip.arrival_delay_seconds > 0 %}
+                  <span class="delay-badge">+{{ (trip.arrival_delay_seconds / 60)|round(0)|int }}m</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if trip.planned_duration_minutes is not none %}
+                  {{ trip.planned_duration_minutes }} min
+                  {% if trip.actual_duration_minutes is not none and trip.actual_duration_minutes != trip.planned_duration_minutes %}
+                    <small class="actual-dur">({{ trip.actual_duration_minutes }})</small>
+                  {% endif %}
+                {% else %}
+                  --
+                {% endif %}
+              </td>
+              <td>
+                {% if trip.cancelled %}
+                  <span class="pill pill--critical">Cancelled</span>
+                {% elif trip.part_cancelled %}
+                  <span class="pill pill--bad">Part cancelled</span>
+                {% elif trip.max_delay_seconds > 0 %}
+                  {{ (trip.max_delay_seconds / 60)|round(0)|int }} min
+                {% else %}
+                  0
+                {% endif %}
+              </td>
+              <td>
+                <span class="grade-chip grade-chip--{{ trip.delay_grade }}">{{ trip.delay_grade }}</span>
+                <small>{{ trip.delay_grade_label }}</small>
+              </td>
+              <td>{{ trip.status_label }}</td>
+              <td>
+                {% if trip.train_category %}
+                  {{ trip.train_category }}{% if trip.train_number %} {{ trip.train_number }}{% endif %}
+                {% else %}
+                  --
+                {% endif %}
+              </td>
+              <td>{{ trip.transfer_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% else %}
+  <section class="panel">
+    <div class="panel__header">
+      <h3>No data</h3>
+      <p>No trip samples were collected for this route on {{ detail.day.isoformat() }}.</p>
+    </div>
+  </section>
+  {% endif %}
+{% endblock %}
