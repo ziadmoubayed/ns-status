@@ -16,6 +16,38 @@
       "destination_name": "Utrecht Centraal",
       "destination_uic_code": "8400621",
       "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
+    },
+    {
+      "route_id": "rotterdam-amsterdam-centraal",
+      "origin_name": "Rotterdam Centraal",
+      "origin_uic_code": "8400530",
+      "destination_name": "Amsterdam Centraal",
+      "destination_uic_code": "8400058",
+      "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
+    },
+    {
+      "route_id": "amsterdam-centraal-rotterdam",
+      "origin_name": "Amsterdam Centraal",
+      "origin_uic_code": "8400058",
+      "destination_name": "Rotterdam Centraal",
+      "destination_uic_code": "8400530",
+      "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
+    },
+    {
+      "route_id": "den-haag-amsterdam-centraal",
+      "origin_name": "Den Haag Centraal",
+      "origin_uic_code": "8400282",
+      "destination_name": "Amsterdam Centraal",
+      "destination_uic_code": "8400058",
+      "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
+    },
+    {
+      "route_id": "amsterdam-centraal-den-haag",
+      "origin_name": "Amsterdam Centraal",
+      "origin_uic_code": "8400058",
+      "destination_name": "Den Haag Centraal",
+      "destination_uic_code": "8400282",
+      "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
     }
   ],
   "sampling_windows": [
