@@ -8,6 +8,14 @@
       "destination_name": "Amsterdam Centraal",
       "destination_uic_code": "8400058",
       "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
+    },
+    {
+      "route_id": "amsterdam-centraal-utrecht",
+      "origin_name": "Amsterdam Centraal",
+      "origin_uic_code": "8400058",
+      "destination_name": "Utrecht Centraal",
+      "destination_uic_code": "8400621",
+      "disabled_transport_modalities": ["BUS", "TRAM", "METRO", "FERRY"]
     }
   ],
   "sampling_windows": [
