@@ -29,6 +29,16 @@ def create_app() -> FastAPI:
     app = FastAPI(title="NS Route Status", version="0.1.0")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+    def _rush_hours_label() -> str:
+        if not config.rush_hours:
+            return ""
+        parts = []
+        for w in config.rush_hours:
+            parts.append(f"{w.start.strftime('%H:%M')}–{w.end.strftime('%H:%M')}")
+        return ", ".join(parts)
+
+    rush_label = _rush_hours_label()
+
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:
         today = date.today()
@@ -44,6 +54,7 @@ def create_app() -> FastAPI:
                 "is_index": True,
                 "start_day": today - timedelta(days=29),
                 "end_day": today,
+                "rush_hours_label": rush_label,
             },
         )
 
@@ -59,6 +70,7 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.") from exc
 
+        today = date.today()
         detail = repository.build_day_detail(route, service_day)
         return templates.TemplateResponse(
             request=request,
@@ -70,6 +82,10 @@ def create_app() -> FastAPI:
                 "page_subtitle": f"All trip samples collected for {detail.day.isoformat()}.",
                 "window_days": 30,
                 "is_index": False,
+                "rush_hours_label": rush_label,
+                "prev_day": (service_day - timedelta(days=1)).isoformat(),
+                "next_day": (service_day + timedelta(days=1)).isoformat() if service_day < today else None,
+                "is_today": service_day == today,
             },
         )
 

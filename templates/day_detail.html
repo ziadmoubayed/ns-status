@@ -17,24 +17,33 @@
         <span class="detail-header__meta">No stored samples for this day</span>
       {% endif %}
     </div>
-    <div class="detail-header__scores">
-      {% if detail.rush_hour_score is not none %}
-        <span class="score-badge score-badge--rush" title="Rush hour score ({{ detail.rush_hour_sample_count }} trips)">
-          <span class="score-badge__label">Rush</span>
-          <span class="score-badge__value">{{ detail.rush_hour_score|round(0)|int }}</span>
-        </span>
-      {% endif %}
-      {% if detail.availability_score is not none %}
-        <span class="score-badge score-badge--overall" title="Overall score ({{ detail.sample_count }} trips)">
-          <span class="score-badge__label">Overall</span>
-          <span class="score-badge__value">{{ detail.availability_score|round(0)|int }}</span>
-        </span>
-      {% elif detail.rush_hour_score is none %}
-        <span class="score-badge score-badge--nodata">
-          <span class="score-badge__label">Score</span>
-          <span class="score-badge__value">--</span>
-        </span>
-      {% endif %}
+    <div class="detail-header__right">
+      <div class="detail-header__scores">
+        {% if detail.rush_hour_score is not none %}
+          <div class="score-badge score-badge--rush" title="Rush hour score ({{ detail.rush_hour_sample_count }} trips, {{ rush_hours_label }})">
+            <span class="score-badge__value">⚡{{ detail.rush_hour_score|round(0)|int }}</span>
+            <span class="score-badge__sub">{{ detail.rush_hour_sample_count }} trip{{ "s" if detail.rush_hour_sample_count != 1 }}</span>
+          </div>
+        {% endif %}
+        {% if detail.availability_score is not none %}
+          <div class="score-badge score-badge--overall" title="Overall score ({{ detail.sample_count }} trips)">
+            <span class="score-badge__value">{{ detail.availability_score|round(0)|int }}</span>
+            <span class="score-badge__sub">{{ detail.sample_count }} trip{{ "s" if detail.sample_count != 1 }}</span>
+          </div>
+        {% elif detail.rush_hour_score is none %}
+          <div class="score-badge score-badge--nodata">
+            <span class="score-badge__value">–</span>
+          </div>
+        {% endif %}
+      </div>
+      <div class="day-nav">
+        <a class="day-nav__btn" href="/routes/{{ route_id }}/days/{{ prev_day }}">←</a>
+        {% if next_day %}
+          <a class="day-nav__btn" href="/routes/{{ route_id }}/days/{{ next_day }}">→</a>
+        {% else %}
+          <span class="day-nav__btn day-nav__btn--disabled">→</span>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -82,7 +91,7 @@
         </thead>
         <tbody>
           {% for trip in detail.trips %}
-            <tr class="trip-row trip-row--grade-{{ trip.delay_grade }}{% if trip.cancelled %} trip-row--cancelled{% endif %}">
+            <tr class="trip-row trip-row--grade-{{ trip.delay_grade }}{% if trip.cancelled %} trip-row--cancelled{% endif %}" data-time="{{ trip.planned_departure[11:16] }}">
               <td>{% if trip.is_rush_hour %}<span class="pill pill--rush" title="Rush hour">R</span>{% endif %}</td>
               <td>
                 {{ trip.planned_departure[11:16] }}
@@ -145,3 +154,19 @@
   </section>
   {% endif %}
 {% endblock %}
+
+{% if is_today and detail.has_data %}
+<script>
+  (function () {
+    const now = new Date();
+    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    const rows = document.querySelectorAll('tr[data-time]');
+    let target = null;
+    for (const row of rows) {
+      if (row.dataset.time >= currentTime) { target = row; break; }
+    }
+    if (!target && rows.length) target = rows[rows.length - 1];
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  })();
+</script>
+{% endif %}

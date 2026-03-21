@@ -3,7 +3,7 @@
 {% block content %}
   <div class="strip-axis">
     <span>{{ start_day.strftime('%b %-d') }}</span>
-    <span>{{ end_day.strftime('%b %-d') }} · Today</span>
+    <span>Today</span>
   </div>
 
   <div class="route-list">
@@ -17,44 +17,41 @@
           </div>
           <div class="route-row__scores">
             {% if route.thirty_day_rush_hour_average is not none %}
-              <span class="score-badge score-badge--rush" title="30-day rush hour average">
-                <span class="score-badge__label">Rush</span>
-                <span class="score-badge__value">{{ route.thirty_day_rush_hour_average|round(0)|int }}</span>
+              <span class="score-badge score-badge--rush" title="30-day rush hour average ({{ rush_hours_label }})">
+                <span class="score-badge__value">⚡{{ route.thirty_day_rush_hour_average|round(0)|int }}</span>
               </span>
             {% endif %}
             {% if route.thirty_day_average is not none %}
               <span class="score-badge score-badge--overall" title="30-day overall average">
-                <span class="score-badge__label">Overall</span>
                 <span class="score-badge__value">{{ route.thirty_day_average|round(0)|int }}</span>
               </span>
             {% elif route.thirty_day_rush_hour_average is none %}
               <span class="score-badge score-badge--nodata">
-                <span class="score-badge__label">30d</span>
-                <span class="score-badge__value">--</span>
+                <span class="score-badge__value">–</span>
               </span>
             {% endif %}
           </div>
         </div>
-        <div class="day-strip-dual">
-          <span class="day-strip-dual__label">Rush</span>
+        <div class="day-strip-dual day-strip-dual--rush">
+          <span class="day-strip-dual__label">⚡ Rush hour</span>
           <div class="day-strip">
             {% for day in route.days %}
               <a
                 class="day-strip__cell day-strip__cell--{{ day.tone if day.rush_hour_score is not none else 'no-data' }}{% if loop.last %} day-strip__cell--today{% endif %}"
                 href="/routes/{{ route.route_id }}/days/{{ day.day.isoformat() }}"
-                title="{{ day.day.strftime('%a %b %-d') }}{% if day.rush_hour_score is not none %} · rush {{ day.rush_hour_score }}{% else %} · no rush data{% endif %}"
+                data-tip="{{ day.day.strftime('%b %-d') }}{% if day.rush_hour_score is not none %} · {{ day.rush_hour_score|round(0)|int }}{% endif %}"
               ></a>
             {% endfor %}
           </div>
         </div>
-        <div class="day-strip-dual">
-          <span class="day-strip-dual__label">All</span>
+        <div class="day-strip-dual day-strip-dual--all">
+          <span class="day-strip-dual__label">All trips</span>
           <div class="day-strip">
             {% for day in route.days %}
               <a
                 class="day-strip__cell day-strip__cell--{{ day.tone }}{% if loop.last %} day-strip__cell--today{% endif %}"
                 href="/routes/{{ route.route_id }}/days/{{ day.day.isoformat() }}"
-                title="{{ day.day.strftime('%a %b %-d') }} · {{ day.status_label }}{% if day.availability_score is not none %} · overall {{ day.availability_score }}{% endif %}"
+                data-tip="{{ day.day.strftime('%b %-d') }}{% if day.availability_score is not none %} · {{ day.availability_score|round(0)|int }}{% endif %}"
               ></a>
             {% endfor %}
           </div>

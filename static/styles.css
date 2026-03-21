@@ -33,7 +33,16 @@ body {
 .chrome {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px 20px 56px;
+  padding: 28px 20px 0;
+}
+
+.site-footer {
+  margin-top: 48px;
+  padding: 20px 4px 40px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.6;
 }
 
 .hero {
@@ -99,12 +108,9 @@ body {
   background: rgba(255, 255, 255, 0.5);
 }
 
-/* Compact top bar for index */
+/* Compact top bar */
 .topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 4px;
+  padding: 16px 4px 12px;
 }
 
 .topbar__left {
@@ -119,16 +125,12 @@ body {
   color: var(--ink);
 }
 
-.topbar__sep {
-  color: var(--muted);
-}
-
-.topbar__range {
+.topbar__subtitle {
+  margin: 6px 0 0;
   font-size: 0.82rem;
-  font-weight: 600;
   color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  line-height: 1.5;
+  max-width: 640px;
 }
 
 .topbar__back {
@@ -141,6 +143,13 @@ body {
 
 .topbar__back:hover {
   color: var(--ink-soft);
+}
+
+.topbar__subtitle {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
 }
 
 /* Detail page header */
@@ -186,6 +195,47 @@ body {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.detail-header__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Prev / next day navigation */
+.day-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.day-nav__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.day-nav__btn:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(13, 43, 99, 0.3);
+}
+
+.day-nav__btn--disabled {
+  color: var(--muted);
+  cursor: default;
+  pointer-events: none;
 }
 
 .content {
@@ -250,11 +300,17 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 52px;
+  justify-content: center;
+  min-width: 48px;
   padding: 6px 10px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.7);
+}
+
+.score-badge__icon {
+  font-size: 0.7rem;
+  line-height: 1;
 }
 
 .score-badge__label {
@@ -272,8 +328,24 @@ body {
   line-height: 1.2;
 }
 
+.score-badge__sub {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  line-height: 1;
+}
+
+.score-badge--rush {
+  background: rgba(255, 201, 23, 0.12);
+  border-color: rgba(216, 163, 0, 0.25);
+}
 .score-badge--rush .score-badge__value { color: var(--yellow-deep); }
+
+.score-badge--overall {
+  background: rgba(13, 43, 99, 0.04);
+}
 .score-badge--overall .score-badge__value { color: var(--ink); }
+
 .score-badge--nodata .score-badge__value { color: var(--no-data); }
 
 /* Dual day strip (rush / overall) */
@@ -281,21 +353,29 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .day-strip-dual + .day-strip-dual {
-  margin-top: 4px;
+  margin-top: 2px;
+}
+
+.day-strip-dual--rush {
+  background: rgba(255, 201, 23, 0.08);
+}
+
+.day-strip-dual--all {
+  background: rgba(13, 43, 99, 0.03);
 }
 
 .day-strip-dual__label {
   flex-shrink: 0;
-  width: 34px;
-  font-size: 0.62rem;
+  width: 80px;
+  font-size: 0.65rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--ink-soft);
-  text-align: right;
+  white-space: nowrap;
 }
 
 .route-row__avg {
@@ -413,6 +493,7 @@ body {
 
 .day-strip__cell {
   display: block;
+  position: relative;
   min-height: 14px;
   border-radius: 4px;
   background: currentColor;
@@ -423,6 +504,30 @@ body {
 
 .day-strip__cell:hover {
   transform: scaleY(1.35);
+  opacity: 1;
+}
+
+/* Tooltip */
+.day-strip__cell[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 100ms ease;
+  z-index: 10;
+}
+
+.day-strip__cell[data-tip]:hover::after {
   opacity: 1;
 }
 

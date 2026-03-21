@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% if is_index %}NS Route Status{% else %}{{ page_title }} · NS Route Status{% endif %}</title>
+    <link rel="icon" href="{{ url_for('static', path='/favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
   </head>
   <body>
@@ -12,13 +13,23 @@
         <div class="topbar__left">
           {% if not is_index %}<a class="topbar__back" href="/">←</a>{% endif %}
           <strong class="topbar__brand">NS Route Status</strong>
-          <span class="topbar__sep">·</span>
-          <span class="topbar__range">Past {{ window_days }} days</span>
         </div>
+        {% if is_index %}
+        <p class="topbar__subtitle">
+          Availability scores for {{ overview.total_routes }} routes over the past {{ window_days }} days.<br>
+          <strong>⚡ Rush hour</strong> ({{ rush_hours_label }}) and <strong>all trips</strong> tracked separately.
+        </p>
+        {% endif %}
       </header>
       <main class="content">
         {% block content %}{% endblock %}
       </main>
+      <footer class="site-footer">
+        <strong>How scores work</strong> &mdash;
+        Each trip is rated: on time (&lt;&nbsp;2&nbsp;min) = 100, 2–5&nbsp;min delay = 85, 5–10&nbsp;min = 65, 10–20&nbsp;min = 40, 20+&nbsp;min or cancelled = 0.
+        The daily score is the average across all sampled trips.
+        Rush-hour scores only include departures within the configured windows ({{ rush_hours_label }}).
+      </footer>
     </div>
   </body>
   </html>
