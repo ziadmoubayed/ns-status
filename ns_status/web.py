@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -31,15 +31,19 @@ def create_app() -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:
-        overview = repository.build_dashboard(config.routes, days=30)
+        today = date.today()
+        overview = repository.build_dashboard(config.routes, days=30, today=today)
         return templates.TemplateResponse(
             request=request,
             name="index.html",
             context={
                 "overview": overview,
-                "page_title": "NS Route Status",
+                "page_title": "Dashboard",
                 "page_subtitle": "Daily availability for the past 30 days, based on collected rush-hour samples.",
                 "window_days": 30,
+                "is_index": True,
+                "start_day": today - timedelta(days=29),
+                "end_day": today,
             },
         )
 
@@ -65,6 +69,7 @@ def create_app() -> FastAPI:
                 "page_title": f"{detail.display_name} · {detail.day_label}",
                 "page_subtitle": f"All trip samples collected for {detail.day.isoformat()}.",
                 "window_days": 30,
+                "is_index": False,
             },
         )
 

@@ -3,11 +3,20 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ page_title }} · NS Route Status</title>
+    <title>{% if is_index %}NS Route Status{% else %}{{ page_title }} · NS Route Status{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
   </head>
   <body>
     <div class="chrome">
+      {% if is_index %}
+      <header class="topbar">
+        <div class="topbar__left">
+          <strong class="topbar__brand">NS Route Status</strong>
+          <span class="topbar__sep">·</span>
+          <span class="topbar__range">Past {{ window_days }} days</span>
+        </div>
+      </header>
+      {% else %}
       <header class="hero">
         <div class="hero__badge">NS Route Status</div>
         <div class="hero__main">
@@ -19,6 +28,7 @@
           <a class="hero__home" href="/">All routes</a>
         </div>
       </header>
+      {% endif %}
       <main class="content">
         {% block content %}{% endblock %}
       </main>
