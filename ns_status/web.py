@@ -23,7 +23,7 @@ def create_app() -> FastAPI:
     db_path = Path(os.getenv("NS_STATUS_DB", BASE_DIR / "data/ns_status.db"))
 
     config = load_config(config_path)
-    repository = StatusRepository(db_path)
+    repository = StatusRepository(db_path, rush_hours=config.rush_hours)
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
     app = FastAPI(title="NS Route Status", version="0.1.0")

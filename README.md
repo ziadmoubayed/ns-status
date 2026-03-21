@@ -14,7 +14,7 @@ Scraping rendered HTML from `ns.nl` would be brittle. The journey planner fronte
 
 ## Files
 
-- `routes.json`: route definitions and rush-hour windows
+- `routes.json`: route definitions and rush-hour time ranges
 - `data/ns_status.db`: SQLite database created on first run
 
 ## Commands
@@ -66,26 +66,6 @@ Fetches trip data for one route at one departure time from the NS trips API and 
 
 ```bash
 .venv/bin/python -m ns_status collect-once --route-id utrecht-amsterdam-centraal --at 2026-03-10T21:22
-```
-
-### `collect-window`
-
-Collects all routes across every time slot in a named sampling window (defined in `routes.json` with start/end times and an interval). Generates each slot (e.g. every 15 minutes from 07:00–09:00), fetches trips for each route at each slot, and bulk-upserts everything.
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--window` | yes | Sampling window name from `routes.json` (e.g. `morning_rush`) |
-| `--date` | no | Collection date as `YYYY-MM-DD`. Defaults to today. |
-| `--route-id` | no | Optional filter; can be repeated to limit to specific routes. |
-
-```bash
-.venv/bin/python -m ns_status collect-window --window morning_rush --date 2026-03-11
-```
-
-Use a custom database path if you want:
-
-```bash
-.venv/bin/python -m ns_status collect-window --window evening_rush --db data/custom.db
 ```
 
 ### `serve`

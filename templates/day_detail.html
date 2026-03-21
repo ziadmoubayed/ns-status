@@ -12,6 +12,14 @@
           {% if detail.worst_delay_minutes %}
             &middot; worst delay {{ detail.worst_delay_minutes }} min
           {% endif %}
+          {% if detail.rush_hour_score is not none %}
+            <br>Rush hour {{ detail.rush_hour_score }} ({{ detail.rush_hour_sample_count }} trip{{ "s" if detail.rush_hour_sample_count != 1 }})
+            {% if detail.availability_score is not none %}
+              &middot; Overall {{ detail.availability_score }}
+            {% endif %}
+          {% elif detail.availability_score is not none %}
+            <br>Overall score {{ detail.availability_score }}
+          {% endif %}
         {% else %}
           No stored samples for this day
         {% endif %}
@@ -19,13 +27,14 @@
     </div>
     <div class="score-orb score-orb--{{ detail.tone }}">
       <span>
-        {% if detail.availability_score is not none %}
-          {{ detail.availability_score|round(0)|int }}
+        {% set primary = detail.rush_hour_score if detail.rush_hour_score is not none else detail.availability_score %}
+        {% if primary is not none %}
+          {{ primary|round(0)|int }}
         {% else %}
           --
         {% endif %}
       </span>
-      <small>score</small>
+      <small>{% if detail.rush_hour_score is not none %}rush hour{% else %}overall{% endif %}</small>
     </div>
   </section>
 
@@ -67,6 +76,7 @@
       <table class="history-table trip-table">
         <thead>
           <tr>
+            <th></th>
             <th>Departure</th>
             <th>Arrival</th>
             <th>Duration</th>
@@ -80,6 +90,7 @@
         <tbody>
           {% for trip in detail.trips %}
             <tr class="trip-row trip-row--grade-{{ trip.delay_grade }}{% if trip.cancelled %} trip-row--cancelled{% endif %}">
+              <td>{% if trip.is_rush_hour %}<span class="pill pill--rush" title="Rush hour">R</span>{% endif %}</td>
               <td>
                 {{ trip.planned_departure[11:16] }}
                 {% if trip.actual_departure and trip.departure_delay_seconds > 0 %}

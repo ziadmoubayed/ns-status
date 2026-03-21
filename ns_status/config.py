@@ -4,7 +4,7 @@ import json
 from datetime import time
 from pathlib import Path
 
-from .models import AppConfig, RouteConfig, SamplingWindow
+from .models import AppConfig, RouteConfig, RushHourWindow
 
 
 DEFAULT_CONFIG_PATH = Path("routes.json")
@@ -32,24 +32,18 @@ def load_config(path: Path | str | None = None) -> AppConfig:
     if len(route_ids) != len(routes):
         raise ValueError("Duplicate route_id values found in config.")
 
-    windows = tuple(
-        SamplingWindow(
-            name=item["name"],
+    rush_hours = tuple(
+        RushHourWindow(
             start=_parse_time(item["start"]),
             end=_parse_time(item["end"]),
-            interval_minutes=int(item["interval_minutes"]),
         )
-        for item in raw["sampling_windows"]
+        for item in raw.get("rush_hours", [])
     )
-
-    window_names = {window.name for window in windows}
-    if len(window_names) != len(windows):
-        raise ValueError("Duplicate sampling window names found in config.")
 
     return AppConfig(
         timezone_name=raw.get("timezone", "Europe/Amsterdam"),
         routes=routes,
-        sampling_windows=windows,
+        rush_hours=rush_hours,
     )
 
 

@@ -37,14 +37,14 @@ Useful commands:
 .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python -m ns_status list-routes
 .venv/bin/python -m ns_status collect-once --route-id utrecht-amsterdam-centraal --at 2026-03-10T21:22
-.venv/bin/python -m ns_status collect-window --window morning_rush --date 2026-03-11
 .venv/bin/python -m ns_status serve --host 127.0.0.1 --port 8000
 ```
 
 ## Data Semantics
 
 - `delay_grade` is a 1-5 scale derived from the worst delay in a trip, with cancellations and partial cancellations forced to grade `5`.
-- The dashboard availability score is daily and route-based. It is derived from stored `trip_samples`, not from `scrape_runs`.
+- The dashboard computes two scores per route per day: a **rush-hour score** (trips with `planned_departure_at` within configured rush-hour windows) and an **overall score** (all trips). Rush-hour score is the primary indicator when available.
+- Rush-hour windows are defined in `routes.json` under `rush_hours` and matched against `planned_departure_at` (not `requested_datetime`).
 - Missing days in the dashboard are valid and should render as `No Data`, not as zero availability.
 
 ## When Changing Code

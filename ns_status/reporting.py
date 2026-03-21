@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from .models import RouteConfig
+from .models import RouteConfig, RushHourWindow
 
 
 SCORE_CASE = """
@@ -25,6 +25,8 @@ class DailyRouteStatus:
     day: date
     day_label: str
     availability_score: float | None
+    rush_hour_score: float | None
+    rush_hour_sample_count: int
     sample_count: int
     run_count: int
     cancellation_count: int
@@ -44,6 +46,7 @@ class RouteDashboard:
     days: tuple[DailyRouteStatus, ...]
     latest_day: DailyRouteStatus | None
     thirty_day_average: float | None
+    thirty_day_rush_hour_average: float | None
 
 
 @dataclass(frozen=True)
@@ -69,6 +72,7 @@ class TripDetail:
     crowd_forecast: str | None
     train_category: str | None
     train_number: str | None
+    is_rush_hour: bool
 
 
 @dataclass(frozen=True)
@@ -78,6 +82,8 @@ class DayDetail:
     day: date
     day_label: str
     availability_score: float | None
+    rush_hour_score: float | None
+    rush_hour_sample_count: int
     status_label: str
     tone: str
     sample_count: int
@@ -99,8 +105,25 @@ class DashboardOverview:
 
 
 class StatusRepository:
-    def __init__(self, db_path: Path | str = Path("data/ns_status.db")) -> None:
+    def __init__(
+        self,
+        db_path: Path | str = Path("data/ns_status.db"),
+        rush_hours: tuple[RushHourWindow, ...] = (),
+    ) -> None:
         self.db_path = Path(db_path)
+        self.rush_hours = rush_hours
+
+    def _rush_hour_sql(self) -> str:
+        if not self.rush_hours:
+            return "0"
+        parts = []
+        for w in self.rush_hours:
+            s = w.start.strftime("%H:%M")
+            e = w.end.strftime("%H:%M")
+            parts.append(
+                f"SUBSTR(planned_departure_at, 12, 5) BETWEEN '{s}' AND '{e}'"
+            )
+        return "(" + " OR ".join(parts) + ")"
 
     def build_dashboard(
         self,
@@ -112,26 +135,17 @@ class StatusRepository:
         route_dashboards = tuple(self._build_route_dashboard(route, days=days, today=today) for route in routes)
         sorted_dashboards = tuple(sorted(route_dashboards, key=_dashboard_sort_key))
         with_data = [dashboard for dashboard in sorted_dashboards if dashboard.latest_day is not None]
-        latest_scores = [dashboard.latest_day.availability_score for dashboard in with_data if dashboard.latest_day]
         healthy_routes = sum(1 for dashboard in with_data if dashboard.latest_day and dashboard.latest_day.tone == "good")
         alerting_routes = sum(1 for dashboard in with_data if dashboard.latest_day and dashboard.latest_day.tone not in {"good", "no-data"})
+        latest_primary = [_primary_score(d.latest_day) for d in with_data if d.latest_day]
         return DashboardOverview(
             route_dashboards=sorted_dashboards,
             total_routes=len(sorted_dashboards),
             routes_with_data=len(with_data),
             healthy_routes=healthy_routes,
             alerting_routes=alerting_routes,
-            thirty_day_average=_average_score([score for score in latest_scores if score is not None]),
+            thirty_day_average=_average_score([s for s in latest_primary if s is not None]),
         )
-
-    def build_route_dashboard(
-        self,
-        route: RouteConfig,
-        *,
-        days: int = 30,
-        today: date | None = None,
-    ) -> RouteDashboard:
-        return self._build_route_dashboard(route, days=days, today=today)
 
     def _build_route_dashboard(
         self,
@@ -152,6 +166,7 @@ class StatusRepository:
         scored_days = [day for day in day_series if day.has_data and day.availability_score is not None]
         latest_day = scored_days[-1] if scored_days else None
         average = _average_score([day.availability_score for day in scored_days if day.availability_score is not None])
+        rush_average = _average_score([day.rush_hour_score for day in scored_days if day.rush_hour_score is not None])
         return RouteDashboard(
             route_id=route.route_id,
             origin_name=route.origin_name,
@@ -160,6 +175,7 @@ class StatusRepository:
             days=day_series,
             latest_day=latest_day,
             thirty_day_average=average,
+            thirty_day_rush_hour_average=rush_average,
         )
 
     def _load_daily_metrics(
@@ -170,6 +186,8 @@ class StatusRepository:
     ) -> dict[str, dict[date, sqlite3.Row]]:
         if not self.db_path.exists():
             return {}
+
+        rush_filter = self._rush_hour_sql()
 
         with sqlite3.connect(self.db_path) as connection:
             connection.row_factory = sqlite3.Row
@@ -183,7 +201,9 @@ class StatusRepository:
                     ROUND(AVG({SCORE_CASE}), 1) AS availability_score,
                     SUM(CASE WHEN cancelled = 1 OR part_cancelled = 1 THEN 1 ELSE 0 END) AS cancellation_count,
                     MAX(max_delay_seconds) AS worst_delay_seconds,
-                    MAX(sampled_at) AS last_sampled_at
+                    MAX(sampled_at) AS last_sampled_at,
+                    ROUND(AVG(CASE WHEN {rush_filter} THEN {SCORE_CASE} END), 1) AS rush_hour_score,
+                    SUM(CASE WHEN {rush_filter} THEN 1 ELSE 0 END) AS rush_hour_sample_count
                 FROM trip_samples
                 WHERE service_day BETWEEN ? AND ?
                 GROUP BY route_id, service_day
@@ -205,6 +225,8 @@ class StatusRepository:
                 day=service_day,
                 day_label=service_day.strftime("%b %d"),
                 availability_score=None,
+                rush_hour_score=None,
+                rush_hour_sample_count=0,
                 sample_count=0,
                 run_count=0,
                 cancellation_count=0,
@@ -216,12 +238,17 @@ class StatusRepository:
             )
 
         score = float(row["availability_score"])
+        rush_hour_score = float(row["rush_hour_score"]) if row["rush_hour_score"] is not None else None
+        rush_hour_sample_count = int(row["rush_hour_sample_count"])
         cancellation_count = int(row["cancellation_count"])
-        label, tone = classify_score(score)
+        primary = rush_hour_score if rush_hour_score is not None else score
+        label, tone = classify_score(primary)
         return DailyRouteStatus(
             day=service_day,
             day_label=service_day.strftime("%b %d"),
             availability_score=score,
+            rush_hour_score=rush_hour_score,
+            rush_hour_sample_count=rush_hour_sample_count,
             sample_count=int(row["sample_count"]),
             run_count=int(row["run_count"]),
             cancellation_count=cancellation_count,
@@ -246,6 +273,8 @@ class StatusRepository:
                 day=service_day,
                 day_label=service_day.strftime("%b %d, %Y"),
                 availability_score=None,
+                rush_hour_score=None,
+                rush_hour_sample_count=0,
                 status_label="No Data",
                 tone="no-data",
                 sample_count=0,
@@ -255,6 +284,8 @@ class StatusRepository:
                 grade_distribution={},
                 has_data=False,
             )
+
+        rush_filter = self._rush_hour_sql()
 
         with sqlite3.connect(self.db_path) as connection:
             connection.row_factory = sqlite3.Row
@@ -281,7 +312,8 @@ class StatusRepository:
                     crowd_forecast,
                     train_category,
                     train_number,
-                    {SCORE_CASE} AS trip_score
+                    {SCORE_CASE} AS trip_score,
+                    {rush_filter} AS is_rush_hour
                 FROM trip_samples
                 WHERE route_id = ?
                   AND service_day = ?
@@ -295,6 +327,8 @@ class StatusRepository:
         cancellation_count = 0
         worst_delay_seconds = 0
         score_sum = 0.0
+        rush_score_sum = 0.0
+        rush_count = 0
 
         for row in rows:
             grade = int(row["delay_grade"])
@@ -306,7 +340,12 @@ class StatusRepository:
             delay = int(row["max_delay_seconds"])
             if delay > worst_delay_seconds:
                 worst_delay_seconds = delay
-            score_sum += float(row["trip_score"])
+            trip_score = float(row["trip_score"])
+            score_sum += trip_score
+            is_rush = bool(row["is_rush_hour"])
+            if is_rush:
+                rush_score_sum += trip_score
+                rush_count += 1
             trips.append(TripDetail(
                 trip_uid=str(row["trip_uid"]),
                 trip_index=int(row["trip_index"]),
@@ -329,11 +368,14 @@ class StatusRepository:
                 crowd_forecast=str(row["crowd_forecast"]) if row["crowd_forecast"] else None,
                 train_category=str(row["train_category"]) if row["train_category"] else None,
                 train_number=str(row["train_number"]) if row["train_number"] else None,
+                is_rush_hour=is_rush,
             ))
 
         has_data = len(trips) > 0
         avg_score = round(score_sum / len(trips), 1) if trips else None
-        label, tone = classify_score(avg_score) if avg_score is not None else ("No Data", "no-data")
+        rush_hour_score = round(rush_score_sum / rush_count, 1) if rush_count > 0 else None
+        primary = rush_hour_score if rush_hour_score is not None else avg_score
+        label, tone = classify_score(primary) if primary is not None else ("No Data", "no-data")
 
         return DayDetail(
             route_id=route.route_id,
@@ -341,6 +383,8 @@ class StatusRepository:
             day=service_day,
             day_label=service_day.strftime("%b %d, %Y"),
             availability_score=avg_score,
+            rush_hour_score=rush_hour_score,
+            rush_hour_sample_count=rush_count,
             status_label=label,
             tone=tone,
             sample_count=len(trips),
@@ -374,9 +418,13 @@ def classify_score(score: float) -> tuple[str, str]:
     return "Major Disruption", "critical"
 
 
+def _primary_score(day: DailyRouteStatus) -> float | None:
+    return day.rush_hour_score if day.rush_hour_score is not None else day.availability_score
+
+
 def _dashboard_sort_key(dashboard: RouteDashboard) -> tuple[bool, float, str]:
-    latest_score = dashboard.latest_day.availability_score if dashboard.latest_day and dashboard.latest_day.availability_score is not None else 101.0
-    return (dashboard.latest_day is None, latest_score, dashboard.display_name)
+    score = _primary_score(dashboard.latest_day) if dashboard.latest_day else None
+    return (dashboard.latest_day is None, score if score is not None else 101.0, dashboard.display_name)
 
 
 def _iter_days(start_day: date, end_day: date) -> tuple[date, ...]:

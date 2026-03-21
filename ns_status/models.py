@@ -16,30 +16,22 @@ class RouteConfig:
 
 
 @dataclass(frozen=True)
-class SamplingWindow:
-    name: str
+class RushHourWindow:
     start: time
     end: time
-    interval_minutes: int
 
 
 @dataclass(frozen=True)
 class AppConfig:
     timezone_name: str
     routes: tuple[RouteConfig, ...]
-    sampling_windows: tuple[SamplingWindow, ...]
+    rush_hours: tuple[RushHourWindow, ...]
 
     def route_by_id(self, route_id: str) -> RouteConfig:
         for route in self.routes:
             if route.route_id == route_id:
                 return route
         raise KeyError(f"Unknown route_id: {route_id}")
-
-    def window_by_name(self, name: str) -> SamplingWindow:
-        for window in self.sampling_windows:
-            if window.name == name:
-                return window
-        raise KeyError(f"Unknown sampling window: {name}")
 
 
 @dataclass(frozen=True)

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 
 from .client import NSClient
-from .models import AppConfig, RouteConfig, RouteSnapshot, SamplingWindow, TripObservation
+from .models import RouteConfig, RouteSnapshot, TripObservation
 
 
 def collect_snapshot(
@@ -40,41 +39,6 @@ def collect_snapshot(
         raw_response=raw_response,
         trips=trips,
     )
-
-
-def iter_window_datetimes(
-    window: SamplingWindow,
-    on_date: date,
-    timezone: ZoneInfo,
-) -> tuple[datetime, ...]:
-    current = datetime.combine(on_date, window.start, tzinfo=timezone)
-    end = datetime.combine(on_date, window.end, tzinfo=timezone)
-    step = timedelta(minutes=window.interval_minutes)
-    points: list[datetime] = []
-    while current <= end:
-        points.append(current)
-        current += step
-    return tuple(points)
-
-
-def collect_window_snapshots(
-    client: NSClient,
-    config: AppConfig,
-    window: SamplingWindow,
-    on_date: date,
-    route_ids: set[str] | None = None,
-) -> tuple[RouteSnapshot, ...]:
-    timezone = ZoneInfo(config.timezone_name)
-    route_filter = route_ids or {route.route_id for route in config.routes}
-    requested_times = iter_window_datetimes(window, on_date, timezone)
-
-    snapshots: list[RouteSnapshot] = []
-    for requested_datetime in requested_times:
-        for route in config.routes:
-            if route.route_id not in route_filter:
-                continue
-            snapshots.append(collect_snapshot(client, route, requested_datetime))
-    return tuple(snapshots)
 
 
 def grade_delay(

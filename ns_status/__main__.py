@@ -9,7 +9,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .client import NSClient
-from .collector import collect_snapshot, collect_window_snapshots
+from .collector import collect_snapshot
 from .config import DEFAULT_CONFIG_PATH, load_config
 from .storage import Storage
 
@@ -32,12 +32,10 @@ def main() -> None:
                 f"- {route.route_id}: {route.origin_name} ({route.origin_uic_code}) -> "
                 f"{route.destination_name} ({route.destination_uic_code})"
             )
-        print("Sampling windows:")
-        for window in config.sampling_windows:
-            print(
-                f"- {window.name}: {window.start.strftime('%H:%M')} to "
-                f"{window.end.strftime('%H:%M')} every {window.interval_minutes}m"
-            )
+        if config.rush_hours:
+            print("Rush hours:")
+            for window in config.rush_hours:
+                print(f"- {window.start.strftime('%H:%M')} to {window.end.strftime('%H:%M')}")
         return
 
     storage = Storage(args.db)
@@ -74,21 +72,6 @@ def main() -> None:
         run_id = storage.store_snapshot(snapshot)
         print(f"Upserted run {run_id} with {len(snapshot.trips)} trips for {route.route_id}.")
         _print_trip_summaries(snapshot)
-        return
-
-    if args.command == "collect-window":
-        window = config.window_by_name(args.window)
-        collection_date = date.fromisoformat(args.date) if args.date else datetime.now(timezone).date()
-        route_ids = set(args.route_id) if args.route_id else None
-        snapshots = collect_window_snapshots(client, config, window, collection_date, route_ids)
-        run_count = 0
-        for snapshot in snapshots:
-            storage.store_snapshot(snapshot)
-            run_count += 1
-        print(
-            f"Upserted {run_count} runs across {len(snapshots)} route/time combinations "
-            f"for {window.name} on {collection_date.isoformat()}."
-        )
         return
 
     if args.command == "serve":
@@ -132,18 +115,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--at",
         required=True,
         help="Requested departure datetime in ISO-8601 format, for example 2026-03-10T21:22.",
-    )
-
-    collect_window = subparsers.add_parser(
-        "collect-window",
-        help="Collect all route snapshots for a configured sampling window.",
-    )
-    collect_window.add_argument("--window", required=True, help="Sampling window name from routes.json.")
-    collect_window.add_argument("--date", help="Collection date in YYYY-MM-DD. Defaults to today.")
-    collect_window.add_argument(
-        "--route-id",
-        action="append",
-        help="Optional route filter. Repeat to collect more than one route.",
     )
 
     serve = subparsers.add_parser("serve", help="Run the FastAPI status dashboard.")

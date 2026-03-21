@@ -3,12 +3,11 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import unittest
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
-from ns_status.collector import grade_delay, iter_window_datetimes
-from ns_status.models import RouteConfig, RouteSnapshot, SamplingWindow, TripObservation
+from ns_status.collector import grade_delay
+from ns_status.models import RouteConfig, RouteSnapshot, TripObservation
 from ns_status.storage import Storage
 
 
@@ -27,16 +26,6 @@ class GradeDelayTests(unittest.TestCase):
     def test_cancellation_forces_grade_five(self) -> None:
         self.assertEqual(grade_delay(0, cancelled=True), 5)
         self.assertEqual(grade_delay(0, part_cancelled=True), 5)
-
-
-class WindowIteratorTests(unittest.TestCase):
-    def test_window_generation_is_inclusive(self) -> None:
-        window = SamplingWindow(name="morning", start=_time("07:00"), end=_time("07:30"), interval_minutes=15)
-        points = iter_window_datetimes(window, date(2026, 3, 10), ZoneInfo("Europe/Amsterdam"))
-        self.assertEqual(
-            [point.strftime("%H:%M") for point in points],
-            ["07:00", "07:15", "07:30"],
-        )
 
 
 class StorageTests(unittest.TestCase):
@@ -109,13 +98,6 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(trip_count, 1)
             self.assertEqual(max_delay, 120)
             self.assertEqual(service_day, "2026-03-10")
-
-
-def _time(raw: str):
-    hour, minute = raw.split(":")
-    from datetime import time
-
-    return time(hour=int(hour), minute=int(minute))
 
 
 def _snapshot(route: RouteConfig, requested_at: datetime, *, sampled_at: str, delay_seconds: int) -> RouteSnapshot:
