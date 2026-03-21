@@ -1,69 +1,62 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <section class="route-detail-hero">
-    <div>
-      <p class="eyebrow"><a class="breadcrumb" href="/">{{ detail.display_name }}</a></p>
-      <h2>{{ detail.day_label }}</h2>
-      <p class="route-detail-hero__meta">
-        {% if detail.has_data %}
-          {{ detail.sample_count }} trip{{ "s" if detail.sample_count != 1 }} sampled &middot;
+  <div class="detail-header">
+    <div class="detail-header__info">
+      <span class="detail-header__route">{{ detail.display_name }}</span>
+      <h2 class="detail-header__day">{{ detail.day_label }}</h2>
+      {% if detail.has_data %}
+        <span class="detail-header__meta">
+          {{ detail.sample_count }} trip{{ "s" if detail.sample_count != 1 }} &middot;
           {{ detail.cancellation_count }} cancellation{{ "s" if detail.cancellation_count != 1 }}
           {% if detail.worst_delay_minutes %}
             &middot; worst delay {{ detail.worst_delay_minutes }} min
           {% endif %}
-          {% if detail.rush_hour_score is not none %}
-            <br>Rush hour {{ detail.rush_hour_score }} ({{ detail.rush_hour_sample_count }} trip{{ "s" if detail.rush_hour_sample_count != 1 }})
-            {% if detail.availability_score is not none %}
-              &middot; Overall {{ detail.availability_score }}
-            {% endif %}
-          {% elif detail.availability_score is not none %}
-            <br>Overall score {{ detail.availability_score }}
-          {% endif %}
-        {% else %}
-          No stored samples for this day
-        {% endif %}
-      </p>
+        </span>
+      {% else %}
+        <span class="detail-header__meta">No stored samples for this day</span>
+      {% endif %}
     </div>
-    <div class="score-orb score-orb--{{ detail.tone }}">
-      <span>
-        {% set primary = detail.rush_hour_score if detail.rush_hour_score is not none else detail.availability_score %}
-        {% if primary is not none %}
-          {{ primary|round(0)|int }}
-        {% else %}
-          --
-        {% endif %}
-      </span>
-      <small>{% if detail.rush_hour_score is not none %}rush hour{% else %}overall{% endif %}</small>
+    <div class="detail-header__scores">
+      {% if detail.rush_hour_score is not none %}
+        <span class="score-badge score-badge--rush" title="Rush hour score ({{ detail.rush_hour_sample_count }} trips)">
+          <span class="score-badge__label">Rush</span>
+          <span class="score-badge__value">{{ detail.rush_hour_score|round(0)|int }}</span>
+        </span>
+      {% endif %}
+      {% if detail.availability_score is not none %}
+        <span class="score-badge score-badge--overall" title="Overall score ({{ detail.sample_count }} trips)">
+          <span class="score-badge__label">Overall</span>
+          <span class="score-badge__value">{{ detail.availability_score|round(0)|int }}</span>
+        </span>
+      {% elif detail.rush_hour_score is none %}
+        <span class="score-badge score-badge--nodata">
+          <span class="score-badge__label">Score</span>
+          <span class="score-badge__value">--</span>
+        </span>
+      {% endif %}
     </div>
-  </section>
+  </div>
 
   {% if detail.has_data %}
   <section class="panel">
     <div class="panel__header">
-      <h3>Delay grade breakdown</h3>
-      <p>Distribution of delay grades across all trips.</p>
+      <h3>Delay breakdown</h3>
     </div>
+    {% set labels = {1: "On time (< 2 min)", 2: "2 – 5 min", 3: "5 – 10 min", 4: "10 – 20 min", 5: "Cancelled / 20+ min"} %}
     <div class="grade-bar-wrap">
       {% set total = detail.sample_count %}
       {% for grade in [1, 2, 3, 4, 5] %}
         {% set count = detail.grade_distribution.get(grade, 0) %}
         {% set pct = (count / total * 100)|round(0)|int if total > 0 else 0 %}
         <div class="grade-bar-row">
-          <span class="grade-bar-label grade-bar-label--{{ grade }}">Grade {{ grade }}</span>
+          <span class="grade-bar-label grade-bar-label--{{ grade }}">{{ labels[grade] }}</span>
           <div class="grade-bar-track">
             <div class="grade-bar-fill grade-bar-fill--{{ grade }}" style="width: {{ pct }}%"></div>
           </div>
           <span class="grade-bar-count">{{ count }}<small class="grade-bar-pct"> ({{ pct }}%)</small></span>
         </div>
       {% endfor %}
-    </div>
-    <div class="grade-legend">
-      <span><strong>1</strong> On time</span>
-      <span><strong>2</strong> Small delay</span>
-      <span><strong>3</strong> Moderate</span>
-      <span><strong>4</strong> Large delay</span>
-      <span><strong>5</strong> Severe / Cancelled</span>
     </div>
   </section>
 
